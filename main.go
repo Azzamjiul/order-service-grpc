@@ -71,7 +71,10 @@ func createOrder(orderRepository *repository.OrderRepository) gin.HandlerFunc {
 		maxRetriesBackOff := backoff.WithMaxRetries(b, 3)
 		err = backoff.Retry(func() error {
 			_, err = userClient.GetUserByID(uint64(newOrder.UserID))
-			return err
+			if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
+				return err
+			}
+			return backoff.Permanent(err)
 		}, maxRetriesBackOff)
 
 		if err != nil {
@@ -81,7 +84,7 @@ func createOrder(orderRepository *repository.OrderRepository) gin.HandlerFunc {
 				return
 			}
 
-			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+			if st, ok := status.FromError(err); ok && st.Code() == codes.Unknown {
 				c.JSON(404, gin.H{"error": "requested resource not found"})
 				return
 			}
