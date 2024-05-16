@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"order-service/grpc/proto"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // UserServiceClient represents the gRPC client for the user service
@@ -29,11 +33,25 @@ func NewUserServiceClient(addr string) (*UserServiceClient, error) {
 
 // GetUserByID retrieves user information by ID from the user service
 func (c *UserServiceClient) GetUserByID(userID uint64) (*proto.User, error) {
-	fmt.Println("✅✅✅✅✅ UserServiceClient.GetUserByID")
 	req := &proto.GetUserByIdRequest{
 		UserId: userID,
 	}
-	user, err := c.service.GetUserById(context.Background(), req)
+
+	var user *proto.User
+
+	b := backoff.NewConstantBackOff(1 * time.Second)
+	maxRetriesBackOff := backoff.WithMaxRetries(b, 3)
+
+	err := backoff.Retry(func() error {
+		fmt.Println("✅✅✅✅✅ UserServiceClient.GetUserByID")
+		u, err := c.service.GetUserById(context.Background(), req)
+		if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
+			return err
+		}
+		user = u
+		return backoff.Permanent(err)
+	}, maxRetriesBackOff)
+
 	if err != nil {
 		return nil, err
 	}

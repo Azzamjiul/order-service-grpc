@@ -6,9 +6,7 @@ import (
 	"order-service/domain/order"
 	"order-service/domain/order/repository"
 	"order-service/grpc/client"
-	"time"
 
-	"github.com/cenkalti/backoff/v4"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"google.golang.org/grpc/codes"
@@ -67,16 +65,7 @@ func createOrder(orderRepository *repository.OrderRepository) gin.HandlerFunc {
 			return
 		}
 
-		b := backoff.NewConstantBackOff(1 * time.Second)
-		maxRetriesBackOff := backoff.WithMaxRetries(b, 3)
-		err = backoff.Retry(func() error {
-			_, err = userClient.GetUserByID(uint64(newOrder.UserID))
-			if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
-				return err
-			}
-			return backoff.Permanent(err)
-		}, maxRetriesBackOff)
-
+		_, err = userClient.GetUserByID(uint64(newOrder.UserID))
 		if err != nil {
 
 			if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
