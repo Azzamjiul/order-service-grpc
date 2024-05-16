@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"order-service/grpc/proto"
 
 	"google.golang.org/grpc"
@@ -28,6 +29,7 @@ func NewUserServiceClient(addr string) (*UserServiceClient, error) {
 
 // GetUserByID retrieves user information by ID from the user service
 func (c *UserServiceClient) GetUserByID(userID uint64) (*proto.User, error) {
+	fmt.Println("✅✅✅✅✅ UserServiceClient.GetUserByID")
 	req := &proto.GetUserByIdRequest{
 		UserId: userID,
 	}

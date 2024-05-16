@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"order-service/domain/order"
 	"order-service/domain/order/repository"
@@ -8,6 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -64,7 +67,18 @@ func createOrder(orderRepository *repository.OrderRepository) gin.HandlerFunc {
 
 		_, err = userClient.GetUserByID(uint64(newOrder.UserID))
 		if err != nil {
-			c.JSON(500, gin.H{"error": "User not found"})
+
+			if st, ok := status.FromError(err); ok && st.Code() == codes.Unavailable {
+				c.JSON(500, gin.H{"error": "gRPC service is unavailable"})
+				return
+			}
+
+			if st, ok := status.FromError(err); ok && st.Code() == codes.NotFound {
+				c.JSON(404, gin.H{"error": "requested resource not found"})
+				return
+			}
+
+			c.JSON(500, gin.H{"error": fmt.Sprintf("failed to call RPC function: %v", err)})
 			return
 		}
 
